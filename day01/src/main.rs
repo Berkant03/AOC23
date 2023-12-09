@@ -1,25 +1,8 @@
-use std::fs::File;
-use std::io::prelude::*;
-
 fn task01() -> std::io::Result<()> {
-    let mut file = File::open("input.txt")?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-    let mut sum: u32 = 0;
-    contents.lines().for_each(|x| {
-        for c in x.chars() {
-            if c.is_digit(10) {
-                sum += c.to_digit(10).unwrap() * 10u32;
-                break;
-            }
-        }
-
-        for c in x.chars().rev() {
-            if c.is_digit(10) {
-                sum += c.to_digit(10).unwrap();
-                break;
-            }
-        }
+    let contents = std::fs::read_to_string("input.txt")?;
+    let sum = contents.lines().fold(0, |sum, x| {
+        sum + 10 * x.chars().find_map(|c| c.to_digit(10)).unwrap()
+            + x.chars().rev().find_map(|c| c.to_digit(10)).unwrap()
     });
 
     println!("{}", sum);
@@ -29,70 +12,45 @@ fn task01() -> std::io::Result<()> {
 
 fn task02() -> std::io::Result<()> {
     let numbers = vec![
-        "one",
-        "two",
-        "three",
-        "four",
-        "five",
-        "six",
-        "seven",
-        "eight",
-        "nine",
+        "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
     ];
 
-    let mut file = File::open("input.txt")?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
+    let contents = std::fs::read_to_string("input.txt")?;
 
-    let mut sum: u32 = 0;
+    let sum = contents.lines().fold(0, |sum, x| {
+        let l_digit = x.find(|c: char| c.is_digit(10)).unwrap();
+        let r_digit = x.rfind(|c: char| c.is_digit(10)).unwrap();
 
-    contents.lines().for_each(|x| {
-        let l_digit = x.find(|c: char| c.is_digit(10));
-        let r_digit = x.rfind(|c: char| c.is_digit(10));
+        let (left, _) = x.split_at(l_digit);
+        let (_, right) = x.split_at(r_digit);
 
-        let (left, _) = x.split_at(l_digit.unwrap_or(x.len()-1));
-        let (_, right) = x.split_at(r_digit.unwrap_or(0));
-
-        let mut left_index: Option<usize> = None;
-        let mut left_num = 0;
-        let mut right_index: Option<usize> = None;
-        let mut right_num = 0;
+        // index, value
+        let mut left_n = (
+            l_digit,
+            x.chars().nth(l_digit).unwrap().to_digit(10).unwrap(),
+        );
+        let mut right_n = (-1, x.chars().nth(r_digit).unwrap().to_digit(10).unwrap());
 
         for (i, number) in numbers.iter().enumerate() {
-            let pos = left.find(number);
-            if left_index.is_none() {
-                left_index = pos;
-                left_num = i;
-            } 
-            if pos.is_some() && left_index.unwrap() > pos.unwrap() {
-                left_index = pos;
-                left_num = i;
-            }
+            let i = (i + 1) as u32;
 
-            let pos = right.rfind(number);
+            if let Some(pos) = left.find(number) {
+                // potential improvement: #![feature(let_chains)]
+                // https://github.com/rust-lang/rust/issues/53667
+                if left_n.0 > pos {
+                    left_n = (pos, i);
+                }
+            };
 
-            if right_index.is_none() {
-                right_index = pos;
-                right_num = i;
-            }
-
-            if pos.is_some() && right_index.unwrap() < pos.unwrap() {
-                right_index = pos;
-                right_num = i;
-            }
+            if let Some(pos) = right.rfind(number) {
+                let pos = pos as isize;
+                if right_n.0 < pos {
+                    right_n = (pos, i);
+                }
+            };
         }
 
-        if left_index.is_some() {
-            sum += (left_num as u32 + 1) * 10u32;
-        } else {
-            sum += x.chars().nth(l_digit.unwrap()).unwrap().to_digit(10).unwrap() * 10u32;
-        }
-
-        if right_index.is_some() {
-            sum += right_num as u32 + 1
-        } else {
-            sum += x.chars().nth(r_digit.unwrap()).unwrap().to_digit(10).unwrap();
-        }
+        sum + 10 * left_n.1 + right_n.1
     });
 
     println!("{}", sum);
@@ -100,8 +58,8 @@ fn task02() -> std::io::Result<()> {
 }
 
 fn main() -> std::io::Result<()> {
-    task01().unwrap();
-    task02().unwrap();
+    task01()?;
+    task02()?;
 
     Ok(())
 }
